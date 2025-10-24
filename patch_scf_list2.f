@@ -1,6 +1,8 @@
       program patch_new_mpi2
 ! accept wavefunction square (charge density) as input
 ! but rather the in.vr
+! accept atomic_scaling.input
+! which allows one to scaling the motif one-by-one atom
 ccccccccccccccccccccccccccccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccccccccccccccccccccc
 cccc ind(4(i),iatom): the index of ith neighbore of iatom, used in iiatom(ind), ind=[1,natom]
@@ -62,6 +64,11 @@ c      parameter (m=80,rad_box=8.d0)
       real*8 fact_motif(1000)
       integer ind_motif_fact(1000)
       integer*4,allocatable :: pli(:)
+      integer*4 :: new_unit,ios
+      logical :: atomic_scale=.false., iqst
+      character*256 :: fatomic
+      real*8,allocatable :: atomic_scaling(:)
+      real*8 :: atm
 
       call mpi_init(ierr)
       call mpi_comm_rank(MPI_COMM_WORLD,inode,ierr)
@@ -90,6 +97,24 @@ c      parameter (m=80,rad_box=8.d0)
       if(inode.eq.1) then
               write(6,*) "patchE.input ... read finished."
       endif
+
+      inquire(file="atomic_scaling.input",exist=iqst)
+      if(iqst) then
+      open(newunit=new_unit,file="atomic_scaling.input")
+      rewind(new_unit)
+      read(new_unit,*) atomic_scale
+      read(new_unit,*) fatomic 
+      close(new_unit)
+      end if
+      if(atomic_scale) inquire(file=trim(fatomic),exist=iqst)
+      if(.not.iqst) atomic_scale=.false.
+
+      if(inode.eq.1) then
+              write(6,*) "atomic_scaling.input ... read finished."
+              write(6,*) "atomic_scale = ", atomic_scale
+              write(6,*) "fatomic file = ", trim(fatomic)
+      endif
+
 
       open(11,file="MOTIF_list_all")
       rewind(11)
@@ -247,6 +272,25 @@ c        endif
       close(10)
 
       if(inode.eq.1) write(6,*) "config read in"
+
+      allocate(atomic_scaling(natom))
+      atomic_scaling=1.d0
+      if(atomic_scale) then
+      open(newunit=new_unit,file=trim(fatomic))
+      rewind(new_unit)
+      read(new_unit,*) ! Vec Object: 4 MPI processes
+      read(new_unit,*) !   type: mpi
+      do iatom=1,natom
+      read(new_unit,*,iostat=ios) atomic_scaling(iatom)
+      if(ios.ne.0) then
+        write(6,*) "ios=",ios, "iatom= ", iatom, 
+     &" something wrong when reading fatomic"
+        stop
+      end if
+      end do
+      close(new_unit)
+      end if
+
 
       open(10,file=filenameZ)
       rewind(10)
@@ -619,7 +663,7 @@ cccc for the patched sphere of radius: rad_box
       do 100 iatom_patch=1,natom_patch
 
       iatom=ind_config(iatom_patch)
-
+      atm=atomic_scaling(iatom)
       if(x(1,iatom).ge.1.d0) x(1,iatom)=x(1,iatom)-1.d0
       if(x(1,iatom).lt.0.d0) x(1,iatom)=x(1,iatom)+1.d0
 c      xtmp=x(1,iatom)*nnodes
@@ -759,7 +803,7 @@ cccccccc x1,x2,x3 are the positions in the small box coordinates.
        i=ijk_map(1,ii)
        j=ijk_map(2,ii)
        k=ijk_map(3,ii)
-       dens(i,j,k)=dens(i,j,k)+dens_map(ii)-abs(dens_map(ii))*fact
+       dens(i,j,k)=dens(i,j,k)+(dens_map(ii)-abs(dens_map(ii))*fact)*atm
        if(dens(i,j,k).ne.dens(i,j,k)) then
          write(6,*) "i,j,k",i,j,k,dens(i,j,k),ii,fact,sum_dens,sum_dens0
      & , inode
