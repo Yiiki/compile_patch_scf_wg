@@ -875,7 +875,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
             i=(jj-1)/(n2*n3)+1
             j=(jj-1-(i-1)*n2*n3)/n3+1
             k=jj-(i-1)*n2*n3-(j-1)*n3
-            vr_tmp(ii)=vr(i,j,k)+vr0(i,j,k)-vr_crt(i,j,k)
+            vr_tmp(ii)=vr(i,j,k)+vr0(i,j,k)
          enddo
          write(13) vr_tmp
       enddo
