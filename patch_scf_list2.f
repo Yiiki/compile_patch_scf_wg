@@ -69,6 +69,8 @@ c      parameter (m=80,rad_box=8.d0)
       character*256 :: fatomic
       real*8,allocatable :: atomic_scaling(:)
       real*8 :: atm
+      real*8 :: sign_wg
+      logical :: sign_change
 
       call mpi_init(ierr)
       call mpi_comm_rank(MPI_COMM_WORLD,inode,ierr)
@@ -152,6 +154,17 @@ c      parameter (m=80,rad_box=8.d0)
 
       rad_box2=rad_box**2
 
+      sign_wg=1.d0
+      sign_change=.false.
+      inquire(file="sign.input",exist=sign_change)
+      if(sign_change) then
+        open(11,file="sign.input")
+        read(11,*) sign_wg
+        close(11)
+        if(inode.eq.1) then
+         write(6,*) "sign change enable, sign_wg = ", sign_wg
+        end if
+      end if
 !       allocate(dens_mEM(-m:m,-m:m,-m:m,3,num_Emotif))
 
 
@@ -483,7 +496,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
             j=(jj-1-(i-1)*n2*n3)/n3+1
             k=jj-(i-1)*n2*n3-(j-1)*n3
        
-            vr_ext(i,j,k)=vr_tmp(ii)
+            vr_ext(i,j,k)=sign_wg*vr_tmp(ii)
          enddo
       enddo
       close(13)
